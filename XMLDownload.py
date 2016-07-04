@@ -58,7 +58,7 @@ def handleRSS(rss, db, cache, files):
 
     if new_file_size == old_file_size:
         print "Content size is the same as the last time. Skip the rest."
-#        sys.exit(0)
+        sys.exit(0)
     else:
         try:
             f = open(cache, 'w')
