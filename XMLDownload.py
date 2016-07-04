@@ -3,9 +3,11 @@
 import getopt
 import sys
 import urllib
+import urllib2
 import os
 import xml.etree.ElementTree as ET
 import string
+import httplib
 
 def printHelp():
     print "Usage:\n"
@@ -17,10 +19,28 @@ def printHelp():
     print "  --cache <path=./rss.xml>  Where to store the downloaded xml content."
     print "  --files <folder>          Folder with write permission, where to put downloaded files."
 
-def idFromLink(link):
-    start = string.find(link,"id=") + 3
-    end = string.find(link, "/", start)
-    return link[start:end]
+
+# parseRSS
+# Get the content of the RSS feed. Returns a dictionary of {id:link} pairs. Link is the direct URL to the downloadable
+# files. ID is a unique identifier which will be cached for avoid multiple downloads of the same file. (Can be the same
+# as the link.) Why ID is necessary? In my personal case link contains personal key's as part of the URL which I don't
+# wanna store. Modify this function to customise the script to your own feed format.
+def parseRSS(content):
+    return_value = {}
+    try:
+        channel = ET.fromstring(content)[0]
+        for item in channel.iter('item'):
+            link = item.find('link').text
+
+            start = string.find(link, "id=") + 3
+            end = string.find(link, "/", start)
+            id = link[start:end]
+
+            return_value[id] = link
+    except:
+        print "Problem with parsing RSS content."
+    return return_value
+
 
 def handleRSS(rss, db, cache, files):
     try:
@@ -29,50 +49,55 @@ def handleRSS(rss, db, cache, files):
         old_file_size = 0
 
     try:
-        urllib.urlretrieve(rss,cache)
-        new_file_size = os.stat(cache).st_size
+        response = urllib2.urlopen(rss)
+        rss_content = response.read()
+        new_file_size = len(rss_content)
     except:
         print "Error while downloading the RSS content."
         sys.exit(1)
 
-    if old_file_size == new_file_size:
-        print "Content size is the same as the last retrieved file size. Skip the rest."
-        sys.exit(0)
+    if new_file_size == old_file_size:
+        print "Content size is the same as the last time. Skip the rest."
+#        sys.exit(0)
+    else:
+        try:
+            f = open(cache, 'w')
+            f.write(rss_content)
+            f.close()
+        except:
+            print "Error while writing RSS content into cache: " + cache
 
-    try:
-        tree = ET.parse(cache)
-        channel = tree.getroot()[0]
-    except:
-        print "Cannot parse RSS content."
-        sys.exit(1)
-
-    database = []
+    old_database = []
     try:
         f = open(db, 'r')
         for item in f:
-            database.append(item.rstrip('\n'))
+            old_database.append(item.rstrip('\n'))
         f.close()
     except:
         print "Debug: No old database found."
 
+    items = parseRSS(rss_content)
+
     new_database = []
-
-    try:
-        for item in channel.iter('item'):
-            link = item.find('link').text
-            if link in database:
-                print link + " found in old database, skip item."
-            else:
-                print link + " not found in old database. Download it."
-                try:
-                    urllib.urlretrieve(link, files + idFromLink(link) + ".torrent")
-                except:
-                    print "Download failed."
-            new_database.append(link)
-
-    except:
-        print "Problem with parsing items in RSS content."
-        sys.exit(1)
+    for id, link in items.iteritems():
+        if id in old_database:
+            print "ID: " + id + " is found in database. Skip it."
+        else:
+            try:
+                # TODO - get filenames as parameter.
+                print "New ID: " + id + " to download. Link: " + link,
+                sys.stdout.flush()
+                urllib.urlretrieve(link, files + id + ".torrent")
+                print "- Download finished."
+                new_database.append(id)
+            except urllib.HTTPError, e:
+                print "Error while downloading " +id + " from link: " + link + "HTTPError = " + str(e.code)
+            except urllib.URLError, e:
+                print "Error while downloading " + id + " from link: " + link + "URLError = " + str(e.reason)
+            except Exception:
+                import traceback
+                print 'generic exception: ' + traceback.format_exc()
+                print "Error while downloading " + id + " from link: " + link
 
     try:
         f = open(db, 'w')
@@ -96,8 +121,8 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"",["rss=", "db=", "cache=", "files="])
     except getopt.GetoptError:
-        print "Argument handlink error."
-	printHelp()
+        print "Argument handling error."
+        printHelp()
         sys.exit(1)
 
     for opt, arg in opts:
@@ -119,4 +144,3 @@ def main(argv):
 
 if __name__ == "__main__":
    main(sys.argv[1:])
-
