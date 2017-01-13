@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss><channel>
+                <item>
+                  <link>http://localhost:8000/id=1234567/key=123ABCDEF</link>
+                </item>
+</channel></rss>
