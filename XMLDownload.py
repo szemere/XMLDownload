@@ -8,6 +8,7 @@ import os
 import xml.etree.ElementTree as ET
 import string
 import httplib
+import logging
 
 def printHelp():
     print "Usage:\n"
@@ -18,13 +19,18 @@ def printHelp():
     print "  --db <path=./files.db>    Database of the application.\n"
     print "  --cache <path=./rss.xml>  Where to store the downloaded xml content."
     print "  --files <folder>          Folder with write permission, where to put downloaded files."
+    print "  --debug                   Enables debug logs"
 
 
 # parseRSS
-# Get the content of the RSS feed. Returns a dictionary of {id:link} pairs. Link is the direct URL to the downloadable
-# files. ID is a unique identifier which will be cached for avoid multiple downloads of the same file. (Can be the same
-# as the link.) Why ID is necessary? In my personal case link contains personal key's as part of the URL which I don't
-# wanna store. Modify this function to customise the script to your own feed format.
+# Get the content of the RSS feed. Returns a dictionary
+# of {id:link} pairs. Link is the direct URL to the downloadable
+# files. ID is a unique identifier which will be cached for avoid
+# multiple downloads of the same file. (Can be the same
+# as the link.) Why ID is necessary? In my personal case link
+# contains personal key's as part of the URL which I don't
+# wanna store. Modify this function to customise the script to
+# your own feed format.
 def parseRSS(content):
     return_value = {}
     try:
@@ -38,11 +44,15 @@ def parseRSS(content):
 
             return_value[id] = link
     except:
-        print "Problem with parsing RSS content."
+        logging.error("Problem with parsing RSS content.")
     return return_value
 
 
 def handleRSS(rss, db, cache, files):
+
+    if (not os.path.isdir(files)):
+        raise OSError(files + " does not exists")
+
     try:
         old_file_size = os.stat(cache).st_size
     except:
@@ -52,20 +62,18 @@ def handleRSS(rss, db, cache, files):
         response = urllib2.urlopen(rss)
         rss_content = response.read()
         new_file_size = len(rss_content)
-    except:
-        print "Error while downloading the RSS content."
-        sys.exit(1)
+    except URLError as e:
+        raise e
 
     if new_file_size == old_file_size:
-        print "Content size is the same as the last time. Skip the rest."
-        sys.exit(0)
+        logging.debug("Content size is the same as the last time. Skip the rest.")
+        return
     else:
         try:
-            f = open(cache, 'w')
-            f.write(rss_content)
-            f.close()
-        except:
-            print "Error while writing RSS content into cache: " + cache
+            with open(cache, 'w') as f:
+                f.write(rss_content)
+        except IOError as e:
+            raise e
 
     old_database = []
     try:
@@ -74,38 +82,42 @@ def handleRSS(rss, db, cache, files):
             old_database.append(item.rstrip('\n'))
         f.close()
     except:
-        print "Debug: No old database found."
+        logging.debug("No old database found.")
 
     items = parseRSS(rss_content)
 
     new_database = []
     for id, link in items.iteritems():
         if id in old_database:
-            print "ID: " + id + " is found in database. Skip it."
+            logging.debug("ID: " + id + " is found in database. Skip it.")
         else:
             try:
                 # TODO - get filenames as parameter.
-                print "New ID: " + id + " to download. Link: " + link,
+                logging.debug("New ID: {} to download. Link: {}".format(id,link))
                 sys.stdout.flush()
-                urllib.urlretrieve(link, files + id + ".torrent")
-                print "- Download finished."
+                urllib.urlretrieve(link, "{}/{}.torrent".format(files, id))
+                logging.debug("- Download finished.")
                 new_database.append(id)
-            except urllib.HTTPError, e:
-                print "Error while downloading " +id + " from link: " + link + "HTTPError = " + str(e.code)
-            except urllib.URLError, e:
-                print "Error while downloading " + id + " from link: " + link + "URLError = " + str(e.reason)
+            except urllib2.HTTPError, e:
+                logging.error("Error while downloading {} from link: {} HTTPError = {}".format(id,
+                                                                                               link,
+                                                                                               str(e.code)))
+            except urllib2.URLError, e:
+                logging.error("Error while downloading {} from link: {} HTTPError = {}".format(id,
+                                                                                               link,
+                                                                                               str(e.reason)))
             except Exception:
                 import traceback
-                print 'generic exception: ' + traceback.format_exc()
-                print "Error while downloading " + id + " from link: " + link
+                logging.error('generic exception: ' + traceback.format_exc())
+                logging.error("Error while downloading {} from link: {}".format(id,link))
 
     try:
-        f = open(db, 'w')
-        for item in new_database:
-            f.write("%s\n" % item)
-        f.close()
-    except:
-        print "Error: Cannot write database file."
+
+        with open(db, 'w') as f:
+            for item in new_database:
+                f.write("%s\n" % item)
+    except IOError as e:
+        raise e
 
 
 def main(argv):
@@ -119,7 +131,7 @@ def main(argv):
     files = ''
 
     try:
-        opts, args = getopt.getopt(argv,"",["rss=", "db=", "cache=", "files="])
+        opts, args = getopt.getopt(argv,"",["rss=", "db=", "cache=", "files=", "debug"])
     except getopt.GetoptError:
         print "Argument handling error."
         printHelp()
@@ -134,13 +146,26 @@ def main(argv):
             db = arg
         elif opt == "--files":
             files = arg
+        elif opt == "--debug":
+            logging.getLogger().setLevel(logging.DEBUG)
 
     if rss == "" or files == "" :
         print "--rss and --files parameters are mandatory. See help: "
         printHelp()
         sys.exit(3)
 
-    handleRSS(rss, db, cache, files)
+    try:
+        handleRSS(rss, db, cache, files)
+    except OSError as e:
+        logging.error(str(e))
+        sys.exit(1)
+    except URLError as e:
+        logging.error(str(e));
+        sys.exit(2)
+    except IOError as e:
+        logging.error(str(e));
+        sys.exit(3)
 
+logging.basicConfig(level=logging.ERROR)
 if __name__ == "__main__":
-   main(sys.argv[1:])
+    main(sys.argv[1:])
