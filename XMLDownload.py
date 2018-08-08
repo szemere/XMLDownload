@@ -62,7 +62,7 @@ def handleRSS(rss, db, cache, files):
         response = urllib2.urlopen(rss)
         rss_content = response.read()
         new_file_size = len(rss_content)
-    except URLError as e:
+    except urllib2.URLError as e:
         raise e
 
     if new_file_size == old_file_size:
@@ -159,7 +159,7 @@ def main(argv):
     except OSError as e:
         logging.error(str(e))
         sys.exit(1)
-    except URLError as e:
+    except urllib2.URLError as e:
         logging.error(str(e));
         sys.exit(2)
     except IOError as e:
