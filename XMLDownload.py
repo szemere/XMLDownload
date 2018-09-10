@@ -47,6 +47,14 @@ def parseRSS(content):
         logging.error("Problem with parsing RSS content.")
     return return_value
 
+def fetchRSS(rss):
+    try:
+        response = urllib2.urlopen(rss)
+        rss_content = response.read()
+    except urllib2.URLError as e:
+        raise e
+
+    return rss_content
 
 def handleRSS(rss, db, cache, files):
 
@@ -58,12 +66,8 @@ def handleRSS(rss, db, cache, files):
     except:
         old_file_size = 0
 
-    try:
-        response = urllib2.urlopen(rss)
-        rss_content = response.read()
-        new_file_size = len(rss_content)
-    except urllib2.URLError as e:
-        raise e
+    rss_content = fetchRSS(rss)
+    new_file_size = len(rss_content)
 
     if new_file_size == old_file_size:
         logging.debug("Content size is the same as the last time. Skip the rest.")
