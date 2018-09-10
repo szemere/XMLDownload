@@ -56,21 +56,25 @@ def fetchRSS(rss):
 
     return rss_content
 
-def handleRSS(rss, db, cache, files):
-
-    if (not os.path.isdir(files)):
-        raise OSError(files + " does not exists")
-
+def isSameRSS(rss_content, cache):
     try:
         old_file_size = os.stat(cache).st_size
     except:
         old_file_size = 0
 
-    rss_content = fetchRSS(rss)
     new_file_size = len(rss_content)
 
-    if new_file_size == old_file_size:
-        logging.debug("Content size is the same as the last time. Skip the rest.")
+    return new_file_size == old_file_size
+
+def handleRSS(rss, db, cache, files):
+
+    if (not os.path.isdir(files)):
+        raise OSError(files + " does not exists")
+
+    rss_content = fetchRSS(rss)
+
+    if isSameRSS(rss_content, cache):
+        logging.debug("RSS is the same. Skip the rest.")
         return
     else:
         try:
