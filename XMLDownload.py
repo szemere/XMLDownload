@@ -105,7 +105,6 @@ def handleRSS(rss, db, cache, files):
                 sys.stdout.flush()
                 urllib.urlretrieve(link, "{}/{}.torrent".format(files, id))
                 logging.debug("- Download finished.")
-                new_database.append(id)
             except urllib2.HTTPError, e:
                 logging.error("Error while downloading {} from link: {} HTTPError = {}".format(id,
                                                                                                link,
@@ -119,8 +118,9 @@ def handleRSS(rss, db, cache, files):
                 logging.error('generic exception: ' + traceback.format_exc())
                 logging.error("Error while downloading {} from link: {}".format(id,link))
 
-    try:
+        new_database.append(id)
 
+    try:
         with open(db, 'w') as f:
             for item in new_database:
                 f.write("%s\n" % item)
