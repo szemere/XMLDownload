@@ -47,26 +47,34 @@ def parseRSS(content):
         logging.error("Problem with parsing RSS content.")
     return return_value
 
+def fetchRSS(rss):
+    try:
+        response = urllib2.urlopen(rss)
+        rss_content = response.read()
+    except urllib2.URLError as e:
+        raise e
+
+    return rss_content
+
+def isSameRSS(rss_content, cache):
+    try:
+        old_file_size = os.stat(cache).st_size
+    except:
+        old_file_size = 0
+
+    new_file_size = len(rss_content)
+
+    return new_file_size == old_file_size
 
 def handleRSS(rss, db, cache, files):
 
     if (not os.path.isdir(files)):
         raise OSError(files + " does not exists")
 
-    try:
-        old_file_size = os.stat(cache).st_size
-    except:
-        old_file_size = 0
+    rss_content = fetchRSS(rss)
 
-    try:
-        response = urllib2.urlopen(rss)
-        rss_content = response.read()
-        new_file_size = len(rss_content)
-    except urllib2.URLError as e:
-        raise e
-
-    if new_file_size == old_file_size:
-        logging.debug("Content size is the same as the last time. Skip the rest.")
+    if isSameRSS(rss_content, cache):
+        logging.debug("RSS is the same. Skip the rest.")
         return
     else:
         try:
@@ -97,7 +105,6 @@ def handleRSS(rss, db, cache, files):
                 sys.stdout.flush()
                 urllib.urlretrieve(link, "{}/{}.torrent".format(files, id))
                 logging.debug("- Download finished.")
-                new_database.append(id)
             except urllib2.HTTPError, e:
                 logging.error("Error while downloading {} from link: {} HTTPError = {}".format(id,
                                                                                                link,
@@ -111,8 +118,9 @@ def handleRSS(rss, db, cache, files):
                 logging.error('generic exception: ' + traceback.format_exc())
                 logging.error("Error while downloading {} from link: {}".format(id,link))
 
-    try:
+        new_database.append(id)
 
+    try:
         with open(db, 'w') as f:
             for item in new_database:
                 f.write("%s\n" % item)
