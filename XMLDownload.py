@@ -2,24 +2,24 @@
 
 import getopt
 import sys
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import os
 import xml.etree.ElementTree as ET
 import string
-import httplib
+import http.client
 import logging
 
 def printHelp():
-    print "Usage:\n"
-    print "  To see this help: Run without parameters.\n"
-    print "  XMLDownloader <options - see below>"
+    print("Usage:\n")
+    print("  To see this help: Run without parameters.\n")
+    print("  XMLDownloader <options - see below>")
 
-    print "  --rss <URL>               URL of the watched RSS channel.\n"
-    print "  --db <path=./files.db>    Database of the application.\n"
-    print "  --cache <path=./rss.xml>  Where to store the downloaded xml content."
-    print "  --files <folder>          Folder with write permission, where to put downloaded files."
-    print "  --debug                   Enables debug logs"
+    print("  --rss <URL>               URL of the watched RSS channel.\n")
+    print("  --db <path=./files.db>    Database of the application.\n")
+    print("  --cache <path=./rss.xml>  Where to store the downloaded xml content.")
+    print("  --files <folder>          Folder with write permission, where to put downloaded files.")
+    print("  --debug                   Enables debug logs")
 
 
 # parseRSS
@@ -49,9 +49,9 @@ def parseRSS(content):
 
 def fetchRSS(rss):
     try:
-        response = urllib2.urlopen(rss)
+        response = urllib.request.urlopen(rss)
         rss_content = response.read()
-    except urllib2.URLError as e:
+    except urllib.error.URLError as e:
         raise e
 
     return rss_content
@@ -95,7 +95,7 @@ def handleRSS(rss, db, cache, files):
     items = parseRSS(rss_content)
 
     new_database = []
-    for id, link in items.iteritems():
+    for id, link in items.items():
         if id in old_database:
             logging.debug("ID: " + id + " is found in database. Skip it.")
         else:
@@ -103,13 +103,13 @@ def handleRSS(rss, db, cache, files):
                 # TODO - get filenames as parameter.
                 logging.debug("New ID: {} to download. Link: {}".format(id,link))
                 sys.stdout.flush()
-                urllib.urlretrieve(link, "{}/{}.torrent".format(files, id))
+                urllib.request.urlretrieve(link, "{}/{}.torrent".format(files, id))
                 logging.debug("- Download finished.")
-            except urllib2.HTTPError, e:
+            except urllib.error.HTTPError as e:
                 logging.error("Error while downloading {} from link: {} HTTPError = {}".format(id,
                                                                                                link,
                                                                                                str(e.code)))
-            except urllib2.URLError, e:
+            except urllib.error.URLError as e:
                 logging.error("Error while downloading {} from link: {} HTTPError = {}".format(id,
                                                                                                link,
                                                                                                str(e.reason)))
@@ -141,7 +141,7 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"",["rss=", "db=", "cache=", "files=", "debug"])
     except getopt.GetoptError:
-        print "Argument handling error."
+        print("Argument handling error.")
         printHelp()
         sys.exit(1)
 
@@ -158,7 +158,7 @@ def main(argv):
             logging.getLogger().setLevel(logging.DEBUG)
 
     if rss == "" or files == "" :
-        print "--rss and --files parameters are mandatory. See help: "
+        print("--rss and --files parameters are mandatory. See help: ")
         printHelp()
         sys.exit(3)
 
@@ -167,7 +167,7 @@ def main(argv):
     except OSError as e:
         logging.error(str(e))
         sys.exit(1)
-    except urllib2.URLError as e:
+    except urllib.error.URLError as e:
         logging.error(str(e));
         sys.exit(2)
     except IOError as e:
