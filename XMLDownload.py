@@ -79,7 +79,7 @@ def handleRSS(rss, db, cache, files):
     else:
         try:
             with open(cache, 'w') as f:
-                f.write(rss_content)
+                f.write(rss_content.decode())
         except IOError as e:
             raise e
 
