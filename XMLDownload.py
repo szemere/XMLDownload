@@ -43,8 +43,8 @@ def parseRSS(content):
             id = link[start:end]
 
             return_value[id] = link
-    except:
-        logging.error("Problem with parsing RSS content.")
+    except Exception as e:
+        logging.error("Problem with parsing RSS content: {}".format(str(e)))
     return return_value
 
 def fetchRSS(rss):
