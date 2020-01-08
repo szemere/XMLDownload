@@ -6,7 +6,6 @@ import urllib.request, urllib.parse, urllib.error
 import urllib.request, urllib.error, urllib.parse
 import os
 import xml.etree.ElementTree as ET
-import string
 import http.client
 import logging
 
@@ -38,8 +37,8 @@ def parseRSS(content):
         for item in channel.iter('item'):
             link = item.find('link').text
 
-            start = string.find(link, "id=") + 3
-            end = string.find(link, "/", start)
+            start = link.find("id=") + 3
+            end = link.find("/", start)
             id = link[start:end]
 
             return_value[id] = link
