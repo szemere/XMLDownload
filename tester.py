@@ -1,7 +1,7 @@
 import time
 import multiprocessing
-import SocketServer
-import SimpleHTTPServer
+import socketserver
+import http.server
 import unittest
 import tempfile
 import shutil
@@ -18,9 +18,9 @@ class XMLDownloadTester(unittest.TestCase):
         self.tempdir = tempfile.mkdtemp(dir=".")
 
         PORT = 8000
-        Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-        SocketServer.TCPServer.allow_reuse_address = True
-        httpd = SocketServer.TCPServer(("", PORT), Handler)
+        Handler = http.server.SimpleHTTPRequestHandler
+        socketserver.TCPServer.allow_reuse_address = True
+        httpd = socketserver.TCPServer(("", PORT), Handler)
         self.server_process = multiprocessing.Process(target=httpd.serve_forever)
         self.server_process.daemon = True
 
